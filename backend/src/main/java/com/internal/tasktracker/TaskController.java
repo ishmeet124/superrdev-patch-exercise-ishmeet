@@ -22,6 +22,15 @@ public class TaskController {
             @RequestParam(required = false, defaultValue = "1") int page,
             @RequestParam(required = false, defaultValue = "10") int pageSize) {
 
+        // Validate pagination parameters before doing any calculations.
+        if (page < 1 || pageSize < 1 || pageSize > 100) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of(
+                            "error",
+                            "page must be >= 1 and pageSize must be between 1 and 100"
+                    ));
+        }
+
         // Normalize query input
         String query = q == null ? "" : q.trim();
         String searchTerm = "%" + query.toLowerCase() + "%";
@@ -35,25 +44,34 @@ public class TaskController {
         // Query complexity estimation for logging
         int complexityScore = Math.max(0, 10 - query.length());
         long queryWeight = complexityScore * 100L;
+
         try {
             Thread.sleep(queryWeight);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
 
-        System.out.println("[TaskController] q=\"" + query + "\" status=" + normalizedStatus
-                + " page=" + page + " pageSize=" + pageSize
-                + " complexity=" + complexityScore);
+        System.out.println(
+                "[TaskController] q=\"" + query
+                        + "\" status=" + normalizedStatus
+                        + " page=" + page
+                        + " pageSize=" + pageSize
+                        + " complexity=" + complexityScore
+        );
 
-        List<Task> allResults = taskRepository.searchTasks(searchTerm, normalizedStatus);
+        List<Task> allResults =
+                taskRepository.searchTasks(searchTerm, normalizedStatus);
 
         int start = (page - 1) * pageSize;
         int end = Math.min(start + pageSize, allResults.size());
-        List<Task> pageResults = (start < allResults.size())
-                ? allResults.subList(start, end)
-                : Collections.emptyList();
+
+        List<Task> pageResults =
+                (start < allResults.size())
+                        ? allResults.subList(start, end)
+                        : Collections.emptyList();
 
         Map<String, Object> response = new LinkedHashMap<>();
+
         response.put("items", pageResults);
         response.put("total", allResults.size());
         response.put("page", page);
